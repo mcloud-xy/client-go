@@ -256,7 +256,8 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 			}
 
 			list, paginatedResult, err = pager.List(context.Background(), options)
-			if isExpiredError(err) {
+			if isExpiredError(err) || isTooLargeResourceVersionError(err) {
+				klog.V(3).Infof("list %v err: %v. relist using resource version '' ", r.expectedTypeName, err)
 				r.setIsLastSyncResourceVersionExpired(true)
 				// Retry immediately if the resource version used to list is expired.
 				// The pager already falls back to full list if paginated list calls fail due to an "Expired" error on
@@ -546,4 +547,24 @@ func isExpiredError(err error) bool {
 	// and always returns apierrors.StatusReasonExpired. For backward compatibility we can only remove the apierrors.IsGone
 	// check when we fully drop support for Kubernetes 1.17 servers from reflectors.
 	return apierrors.IsResourceExpired(err) || apierrors.IsGone(err)
+}
+
+func isTooLargeResourceVersionError(err error) bool {
+	// In Kubernetes 1.17.0-1.18.5, the api server doesn't set the error status cause to
+	// metav1.CauseTypeResourceVersionTooLarge to indicate that the requested minimum resource
+	// version is larger than the largest currently available resource version. To ensure backward
+	// compatibility with these server versions we also need to detect the error based on the content
+	// of the error message field.
+
+	apierr, ok := err.(apierrors.APIStatus)
+	if !ok || apierr == nil || apierr.Status().Details == nil {
+		return false
+	}
+	for _, cause := range apierr.Status().Details.Causes {
+		// Matches the message returned by api server 1.17.0-1.18.5 for this error condition
+		if cause.Message == "Too large resource version" {
+			return true
+		}
+	}
+	return false
 }

@@ -55,7 +55,7 @@ func newQueue(c clock.Clock, metrics queueMetrics, updatePeriod time.Duration) *
 		metrics:                    metrics,
 		unfinishedWorkUpdatePeriod: updatePeriod,
 	}
-	go t.updateUnfinishedWorkLoop()
+	// go t.updateUnfinishedWorkLoop()
 	return t
 }
 
