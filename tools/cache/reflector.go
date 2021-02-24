@@ -211,7 +211,8 @@ func (r *Reflector) ListAndWatch(stopCh <-chan struct{}) error {
 	klog.V(3).Infof("Listing and watching %v from %s", r.expectedTypeName, r.name)
 	var resourceVersion string
 
-	options := metav1.ListOptions{ResourceVersion: r.relistResourceVersion()}
+
+	options := metav1.ListOptions{ResourceVersion: "0"}
 
 	if err := func() error {
 		initTrace := trace.New("Reflector ListAndWatch", trace.Field{"name", r.name})
